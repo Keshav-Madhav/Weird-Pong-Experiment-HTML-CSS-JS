@@ -20,7 +20,9 @@ const cellSize = Math.floor(size / rowCount);
 width = canvas.width = cellSize * colCount;
 height = canvas.height = cellSize * rowCount;
 
-var grid = createGrid(2);
+var divisons = 4
+
+var grid = createGrid(divisons);
 var balls = [];
 
 function createGrid(divisions) {
@@ -30,43 +32,45 @@ function createGrid(divisions) {
   for (var i = 0; i < rowCount; i++) {
     grid[i] = [];
     for (var j = 0; j < colCount; j++) {
-      if (divisions === 2) {
+      let index;
+      if (divisions === 2) { // 2 divisions
         if (j < halfColCount) {
-          grid[i][j] = 0; // Left
+          index = 0; // Left
         } else {
-          grid[i][j] = 1; // Right
+          index = 1; // Right
         }
-      } else if (divisions === 4) {
+      } else if (divisions === 4) { // 4 divisions
         if (j < halfColCount) {
           if (i < halfRowCount) {
-            grid[i][j] = 0; // Top left
+            index = 0; // Top left
           } else {
-            grid[i][j] = 3; // Bottom left
+            index = 3; // Bottom left
           }
         } else {
           if (i < halfRowCount) {
-            grid[i][j] = 1; // Top right
+            index = 1; // Top right
           } else {
-            grid[i][j] = 2; // Bottom right
+            index = 2; // Bottom right
           }
         }
       }
+      grid[i][j] = {x: j, y: i, index: index};
     }
   }
   return grid;
 }
 
 
-// Function to draw a grid on a canvas
 function drawGrid() {
   for (var i = 0; i < grid.length; i++) {
     for (var j = 0; j < grid[i].length; j++) {
-      const color = indexColorMap[grid[i][j]];
+      const color = indexColorMap[grid[i][j].index];
       ctx.fillStyle = color;
       ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
     }
   }
 }
+
 
 class Ball {
   constructor(x, y, radius, index, dx, dy) {
@@ -102,12 +106,38 @@ class Ball {
       this.dy = -this.dy;
     }
   }
+
+  checkCellCollision(cell) {
+    const dx = this.x - Math.max(cell.x * cellSize, Math.min(this.x, (cell.x + 1) * cellSize));
+    const dy = this.y - Math.max(cell.y * cellSize, Math.min(this.y, (cell.y + 1) * cellSize));
+    const distance = Math.sqrt(dx * dx + dy * dy);
+  
+    if(this.index === cell.index){
+      if (distance < this.radius) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          this.dx = -this.dx; // collision was horizontal
+        } 
+        if (Math.abs(dx) < Math.abs(dy)){
+          this.dy = -this.dy; // collision was vertical
+        }
+        cell.index = (cell.index + 1) % divisons;
+      }
+    }
+  }
+  
 }
 
-balls.push(new Ball(0 + cellSize, 0 + cellSize, cellSize/2, 2, 10, 4));
-balls.push(new Ball(width - cellSize, height - cellSize, cellSize/2, 3, -10, 4));
+if (divisons == 2) {
+  balls.push(new Ball(0 + cellSize, 0 + cellSize, cellSize/3, 1, 1, 2));
+  balls.push(new Ball(width - cellSize, height - cellSize, cellSize/3, 0, -2, -1  ));
+}
+if (divisons == 4) {
+  balls.push(new Ball(0 + cellSize, 0 + cellSize, cellSize/2, 2, 1, 4));
+  balls.push(new Ball(width - cellSize, height - cellSize, cellSize/2, 3, -1, 4));
+  balls.push(new Ball(0 + cellSize, height - cellSize, cellSize/2, 1, 1, -4));
+  balls.push(new Ball(width - cellSize, 0 + cellSize, cellSize/2, 0, -1, -4));
+}
 
-// Simulation loop
 setInterval(() => {
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = 'rgb(0,0,0)';
@@ -116,7 +146,13 @@ setInterval(() => {
   drawGrid();
 
   balls.forEach(ball => {
+    grid.forEach(row => {
+      row.forEach(cell => {
+        ball.checkCellCollision(cell);
+      });
+    });
+
     ball.update();
   });
 
-}, 1000 / 100);
+}, 1000 / 500);
